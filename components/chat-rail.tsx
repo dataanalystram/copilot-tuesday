@@ -11,6 +11,7 @@ import type { AgentSharedState } from "@/lib/agent-state";
 import { localApprovalStore, maybeRequestCanvasApproval, useLocalApproval } from "@/lib/local-approval";
 import { textAttachmentStore, useTextAttachments } from "@/lib/attachment-store";
 import { maybeBuildCsvDashboard } from "@/lib/csv-surfaces";
+import { runLocalAsyncBuild } from "@/lib/local-async-build";
 
 interface SimpleMessage {
   id: string;
@@ -138,6 +139,11 @@ export default function ChatRail({
       return;
     }
     const local = handleLocalDashboardCommand(trimmed, agent.state as AgentSharedState | undefined);
+    if (local.localAsync) {
+      void runLocalAsyncBuild(local.localAsync, local.topic).catch(() => {
+        // The agent still has a chance to respond if the deterministic bridge fails.
+      });
+    }
     if (local.shouldRunAgent) {
       void copilotkit.runAgent({ agent });
     }

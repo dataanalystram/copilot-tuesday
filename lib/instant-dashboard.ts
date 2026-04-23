@@ -14,6 +14,8 @@ export interface LocalDashboardResult {
   handled: boolean;
   shouldRunAgent: boolean;
   deferred?: boolean;
+  localAsync?: "github" | "research";
+  topic?: string;
 }
 
 function component(name: string, props: Record<string, unknown>): SurfaceMeta["tree"] {
@@ -452,7 +454,7 @@ export function handleLocalDashboardCommand(
     const company = lower.match(/\b(?:for|on|about)\s+([a-z0-9 .-]{2,40})/i)?.[1]?.trim() ?? "the company";
     if (GROUNDING_RE.test(message)) {
       surfacesStore.set([researchingSurface(company, "presentation research")]);
-      return { handled: true, shouldRunAgent: true, deferred: true };
+      return { handled: true, shouldRunAgent: true, deferred: true, localAsync: "research", topic: company };
     }
     surfacesStore.set([
       {
@@ -512,8 +514,15 @@ export function handleLocalDashboardCommand(
   const isRepo = /github|repo|vercel\/next\.js|next\.js/.test(lower);
   const needsResearch = GROUNDING_RE.test(message) || isRepo;
   if (needsResearch && !RANDOM_RE.test(message)) {
-    surfacesStore.set([researchingSurface(extractTopic(message), isRepo ? "repository evidence" : "online research")]);
-    return { handled: true, shouldRunAgent: true, deferred: true };
+    const topic = isRepo ? extractRepo(message) : extractTopic(message);
+    surfacesStore.set([researchingSurface(topic, isRepo ? "repository evidence" : "online research")]);
+    return {
+      handled: true,
+      shouldRunAgent: true,
+      deferred: true,
+      localAsync: isRepo ? "github" : "research",
+      topic,
+    };
   }
   const subject = isRepo ? "vercel/next.js" : "Sample metrics";
   const count = parseCount(message);
@@ -537,6 +546,10 @@ function extractTopic(message: string) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80) || "data-rich topic";
+}
+
+function extractRepo(message: string) {
+  return message.match(/\b([a-z0-9_.-]+\/[a-z0-9_.-]+)\b/i)?.[1] ?? "vercel/next.js";
 }
 
 function researchingSurface(topic: string, mode: string): SurfaceMeta {

@@ -34,6 +34,7 @@ import { handleLocalDashboardCommand } from "@/lib/instant-dashboard";
 import { maybeRequestCanvasApproval } from "@/lib/local-approval";
 import { textAttachmentStore, useTextAttachments } from "@/lib/attachment-store";
 import { maybeBuildCsvDashboard } from "@/lib/csv-surfaces";
+import { runLocalAsyncBuild } from "@/lib/local-async-build";
 
 export default function CommandBar({
   onSend,
@@ -80,6 +81,11 @@ export default function CommandBar({
       return;
     }
     const local = handleLocalDashboardCommand(trimmed, agent.state as AgentSharedState | undefined);
+    if (local.localAsync) {
+      void runLocalAsyncBuild(local.localAsync, local.topic).catch(() => {
+        // The agent response remains available if the deterministic bridge fails.
+      });
+    }
     if (local.shouldRunAgent) {
       void copilotkit.runAgent({ agent });
     }
