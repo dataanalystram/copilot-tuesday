@@ -1,5 +1,3 @@
-"use client";
-
 import type { SurfaceMeta } from "./agent-state";
 
 interface RepoStats {

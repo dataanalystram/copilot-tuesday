@@ -20,7 +20,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "@copilotkit/react-core/v2";
 import { motion } from "framer-motion";
-import { handleLocalDashboardCommand } from "@/lib/instant-dashboard";
 import type { AgentSharedState } from "@/lib/agent-state";
 import { maybeRequestCanvasApproval } from "@/lib/local-approval";
 
@@ -72,10 +71,7 @@ export default function VoiceButton({ className }: { className?: string }) {
       if (maybeRequestCanvasApproval(trimmed, agent.state as AgentSharedState | undefined)) {
         return;
       }
-      const local = handleLocalDashboardCommand(trimmed, agent.state as AgentSharedState | undefined);
-      if (local.shouldRunAgent) {
-        void agent.runAgent();
-      }
+      void agent.runAgent();
     },
     [agent],
   );

@@ -6,12 +6,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { SuggestionPills } from "./suggestions";
 import VoiceButton from "./voice-button";
 import { AttachButton } from "./attachment-dropzone";
-import { handleLocalDashboardCommand } from "@/lib/instant-dashboard";
 import type { AgentSharedState } from "@/lib/agent-state";
 import { localApprovalStore, maybeRequestCanvasApproval, useLocalApproval } from "@/lib/local-approval";
-import { textAttachmentStore, useTextAttachments } from "@/lib/attachment-store";
-import { maybeBuildCsvDashboard } from "@/lib/csv-surfaces";
-import { runLocalAsyncBuild } from "@/lib/local-async-build";
+import { useTextAttachments } from "@/lib/attachment-store";
 
 interface SimpleMessage {
   id: string;
@@ -44,7 +41,7 @@ function cleanAssistantText(text: string): string {
     .replace(/<\/?tool_call>/g, "")
     .replace(/<arg_key>[\s\S]*?<\/arg_value>/g, "")
     .replace(/<\/?(arg_key|arg_value|tool_response)>/g, "")
-    .replace(/^(morph_surface|set_theme|set_showcase_stage|pin_insight|update_script_beat|annotate_surface|approve_showcase_plan|github_\w+|project_\w+|python_data_profile|python_data_transform|web_fetch_url)<[\s\S]*$/m, "")
+    .replace(/^(morph_surface|set_theme|set_showcase_stage|pin_insight|update_script_beat|annotate_surface|approve_showcase_plan|github_\w+|project_\w+|python_data_profile|python_data_transform|web_research_\w+|web_fetch_url)<[\s\S]*$/m, "")
     .replace(/^\s*[{[][{"][\s\S]*$/m, "")
     .trim();
 }
@@ -129,24 +126,10 @@ export default function ChatRail({
     agent.addMessage({ id, role: "user", content });
     setDraft("");
     if (inputRef.current) inputRef.current.style.height = "auto";
-    const builtCsv = maybeBuildCsvDashboard(textAttachments);
-    if (builtCsv) {
-      textAttachmentStore.clear();
-      void copilotkit.runAgent({ agent });
-      return;
-    }
     if (maybeRequestCanvasApproval(trimmed, agent.state as AgentSharedState | undefined)) {
       return;
     }
-    const local = handleLocalDashboardCommand(trimmed, agent.state as AgentSharedState | undefined);
-    if (local.localAsync) {
-      void runLocalAsyncBuild(local.localAsync, local.topic).catch(() => {
-        // The agent still has a chance to respond if the deterministic bridge fails.
-      });
-    }
-    if (local.shouldRunAgent) {
-      void copilotkit.runAgent({ agent });
-    }
+    void copilotkit.runAgent({ agent });
   }, [agent, copilotkit, draft, running, textAttachments]);
 
   return (

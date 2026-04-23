@@ -44,6 +44,44 @@ const tools = [
     execute: async ({ repo }) => getRepo(repo),
   }),
   defineTool({
+    name: "github_dashboard_surfaces",
+    description:
+      "Fetch real GitHub evidence and return ready-to-render Studio surfaces. After this tool returns, call morph_surface once per returned surface to put them on the canvas.",
+    parameters: z.object({
+      repo: z.string().describe("owner/name, e.g. vercel/next.js"),
+    }),
+    execute: async ({ repo }) => {
+      const { githubToSurfaces } = await import("@/lib/github-surfaces");
+      const [repoStats, contributors, issues, commitGrid, stars] = await Promise.all([
+        getRepo(repo),
+        getContributors(repo, 10),
+        getIssues(repo, "open", 5),
+        getCommitActivity(repo),
+        getStarTrend(repo, 6),
+      ]);
+      const surfaces = githubToSurfaces({
+        repo: repoStats,
+        contributors: contributors.map((item) => ({
+          login: item.login,
+          contributions: item.contributions,
+        })),
+        issues,
+        commitGrid,
+        stars,
+      });
+      return {
+        repo: repoStats.full_name,
+        summary: {
+          stars: repoStats.stargazers_count,
+          forks: repoStats.forks_count,
+          openIssues: repoStats.open_issues_count,
+          contributors: contributors.length,
+        },
+        surfaces,
+      };
+    },
+  }),
+  defineTool({
     name: "github_contributors",
     description: "Top contributors with avatars and commit counts.",
     parameters: z.object({
@@ -147,6 +185,27 @@ const tools = [
     },
   }),
   defineTool({
+    name: "web_research_dashboard_surfaces",
+    description:
+      "Research any non-GitHub topic online and return chart-ready Studio surfaces. Use this for market, company, technology, public issue, finance, sports, health, or trend dashboards. After this tool returns, call morph_surface once per returned surface.",
+    parameters: z.object({
+      query: z.string().describe("Specific research topic, e.g. 'global EV market trends' or 'AI adoption in healthcare'."),
+    }),
+    execute: async ({ query }) => {
+      const { researchTopicOnline } = await import("@/lib/project-tools");
+      const { setLatestResearch } = await import("@/lib/research-cache");
+      const { researchToSurfaces } = await import("@/lib/research-surfaces");
+      const research = await researchTopicOnline(query);
+      setLatestResearch(research);
+      return {
+        query: research.query,
+        sourceCount: research.sources.length,
+        surfaces: researchToSurfaces(research),
+        research,
+      };
+    },
+  }),
+  defineTool({
     name: "web_fetch_url",
     description:
       "Fetch and extract readable text from a user-provided HTTP(S) URL for internet grounding.",
@@ -168,7 +227,7 @@ const defaultAgent = new BuiltInAgent({
   model: localLLM(LLM_CONFIG.model),
   prompt: SYSTEM_PROMPT,
   tools,
-  maxSteps: 5,
+  maxSteps: 10,
   maxOutputTokens: 16384,
   temperature: 1,
   topP: 1,

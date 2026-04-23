@@ -30,11 +30,8 @@ import { useShortcut } from "./shortcuts";
 import { SuggestionPills } from "./suggestions";
 import VoiceButton from "./voice-button";
 import { AttachButton } from "./attachment-dropzone";
-import { handleLocalDashboardCommand } from "@/lib/instant-dashboard";
 import { maybeRequestCanvasApproval } from "@/lib/local-approval";
-import { textAttachmentStore, useTextAttachments } from "@/lib/attachment-store";
-import { maybeBuildCsvDashboard } from "@/lib/csv-surfaces";
-import { runLocalAsyncBuild } from "@/lib/local-async-build";
+import { useTextAttachments } from "@/lib/attachment-store";
 
 export default function CommandBar({
   onSend,
@@ -69,26 +66,11 @@ export default function CommandBar({
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
     }
-    const builtCsv = maybeBuildCsvDashboard(textAttachments);
-    if (builtCsv) {
-      textAttachmentStore.clear();
-      void copilotkit.runAgent({ agent });
-      onSend?.();
-      return;
-    }
     if (maybeRequestCanvasApproval(trimmed, agent.state as AgentSharedState | undefined)) {
       onSend?.();
       return;
     }
-    const local = handleLocalDashboardCommand(trimmed, agent.state as AgentSharedState | undefined);
-    if (local.localAsync) {
-      void runLocalAsyncBuild(local.localAsync, local.topic).catch(() => {
-        // The agent response remains available if the deterministic bridge fails.
-      });
-    }
-    if (local.shouldRunAgent) {
-      void copilotkit.runAgent({ agent });
-    }
+    void copilotkit.runAgent({ agent });
     onSend?.();
   }, [draft, agent, copilotkit, onSend, textAttachments]);
 

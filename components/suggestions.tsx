@@ -34,7 +34,6 @@
 import { useCallback } from "react";
 import { useAgent, useCopilotKit, useConfigureSuggestions, useSuggestions } from "@copilotkit/react-core/v2";
 import { motion } from "framer-motion";
-import { handleLocalDashboardCommand } from "@/lib/instant-dashboard";
 import type { AgentSharedState } from "@/lib/agent-state";
 import { maybeRequestCanvasApproval } from "@/lib/local-approval";
 
@@ -116,10 +115,7 @@ export function SuggestionPills({
       if (maybeRequestCanvasApproval(message, agent.state as AgentSharedState | undefined)) {
         return;
       }
-      const local = handleLocalDashboardCommand(message, agent.state as AgentSharedState | undefined);
-      if (local.shouldRunAgent) {
-        void copilotkit.runAgent({ agent });
-      }
+      void copilotkit.runAgent({ agent });
     },
     [agent, copilotkit],
   );

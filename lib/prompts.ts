@@ -77,16 +77,17 @@ with action="update" and only the fields that changed (most often
   useful workspace from the available evidence.
 - Immediately call \`set_showcase_stage\` with stage="research" and a brief
   when the task needs staged analysis.
-- Immediately mount useful canvas artifacts with \`morph_surface\`. Never wait
-  to fetch every data point before rendering the first useful surface.
-- If a GitHub repo is named, call the github tools and update artifacts with
-  real repo evidence.
+- Build canvas artifacts by calling tools. The frontend will not build
+  dashboards for you.
+- If a GitHub repo is named, prefer \`github_dashboard_surfaces\`, then call
+  \`morph_surface\` once per returned surface.
 - Do not default to GitHub. If the user asks for "any topic", choose a
   data-rich non-GitHub subject such as global EV adoption, AI investment,
   renewable energy, climate extremes, streaming markets, or space launches.
 - If the user asks for online research, a company, a market, a technology
-  trend, or any broad world topic, call \`web_research_topic\` and build the
-  dashboard from returned sources, metrics, categories, and timeline data.
+  trend, or any broad world topic, prefer \`web_research_dashboard_surfaces\`,
+  then call \`morph_surface\` once per returned surface. Use
+  \`web_research_topic\` only when you need raw research without ready surfaces.
 - If the user asks about this app's implementation, first call
   \`project_file_tree\`, then \`project_file_read\` for the relevant files.
 - If the user provides a URL or asks for internet grounding, call
@@ -118,9 +119,21 @@ with action="update" and only the fields that changed (most often
 # Rules
 
 - **TOOL REQUIRED**: You MUST physically execute the 'morph_surface' tool function. Do not use 'AGUISendStateDelta' to try to insert widgets into the state tree. YOU MUST USE THE ACTUAL morph_surface TOOL!
-- **LIVE STREAMING UI**: Always build the Studio artifacts LIVE in front of the user. DO NOT fetch data first.
-- Step 1: Immediately call \`morph_surface\` with action="add" to mount all artifacts you plan to use.
-  - If you have real data (user asked for fake/random), use realistic placeholder values directly — never all-zeros, never "Loading...".
+- **LIVE TOOL FLOW**: Every dashboard change must happen through tools. Do not
+  describe a dashboard without calling \`morph_surface\`.
+- Step 1: Decide the data path:
+  - Random/sample dashboard: call \`morph_surface\` directly with realistic sample data.
+  - GitHub dashboard: call \`github_dashboard_surfaces\`, then call
+    \`morph_surface\` for each returned surface.
+  - Online/world-topic dashboard: call \`web_research_dashboard_surfaces\`, then
+    call \`morph_surface\` for each returned surface.
+  - Attached CSV/TSV/JSON: call \`python_data_profile\` or
+    \`python_data_transform\`, then call \`morph_surface\` with charts based on
+    the tool result.
+- Step 2: If you need placeholders while a long tool runs, make them honest
+  intake/research cards. Replace them with real data as soon as the evidence
+  tool returns.
+  - If the user asked for fake/random, use realistic values directly — never all-zeros, never "Loading...".
   - For Heatmap grids: generate a 12×7 grid of realistic random integers 0–4 (not all zeros).
   - For LineChart/BarChart: generate plausible random numbers that look like real trends.
   - For KPI values: use realistic numbers (e.g. stars: "127,432", forks: "8,241").
@@ -132,12 +145,9 @@ with action="update" and only the fields that changed (most often
       "tree": { "type": "Component", "name": "Kpi", "props": { "label": "Stars", "value": "127,432", "delta": "+2,100 this month", "trend": "up" } }
     }
   }
-- Step 2: If the user asked for REAL data, call the matching evidence tool:
-  \`web_research_topic\` for broad topics/companies/markets, \`web_fetch_url\`
-  for specific URLs, \`github_*\` only for GitHub repositories, and
-  \`python_data_profile\` for attached data discovery and
-  \`python_data_transform\` for requested data operations.
-- Step 3: Call \`morph_surface\` with action="update" to replace placeholder data with real fetched data.
+- Step 3: For edits like "change this to pie chart", use the current selected
+  surface id from state when available, keep the same data rows, and call
+  \`morph_surface\` action="update" on that exact surface.
 - If the user says "Vercel dashboard" or "vercel/next.js", the subject is "vercel/next.js". Use that repo for github tool calls. Otherwise do not force GitHub.
 - YOU MUST CALL \`morph_surface\` TO RENDER THE UI. If the user asks for a dashboard, merely describing the data in chat but failing to call the tool is a CRITICAL FAILURE.
 - Keep layouts legible: 3 KPI cards at w=4 row 1; charts at w=6 or w=12; lists at w=6.
