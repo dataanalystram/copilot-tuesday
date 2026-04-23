@@ -11,6 +11,7 @@ interface PendingApproval {
   approveLabel: string;
   rejectLabel: string;
   apply: () => void;
+  resolve?: (result: { approved: boolean }) => void;
 }
 
 let pending: PendingApproval | null = null;
@@ -30,10 +31,12 @@ export const localApprovalStore = {
     const current = pending;
     if (!current) return;
     current.apply();
+    current.resolve?.({ approved: true });
     pending = null;
     emit();
   },
   reject: () => {
+    pending?.resolve?.({ approved: false });
     pending = null;
     emit();
   },
@@ -44,6 +47,32 @@ export const localApprovalStore = {
     };
   },
 };
+
+export function requestLocalApproval({
+  title,
+  summary,
+  approveLabel = "Approve",
+  rejectLabel = "Cancel",
+  apply = () => {},
+}: {
+  title: string;
+  summary: string;
+  approveLabel?: string;
+  rejectLabel?: string;
+  apply?: () => void;
+}) {
+  return new Promise<{ approved: boolean }>((resolve) => {
+    localApprovalStore.set({
+      id: `approval_${Date.now()}`,
+      title,
+      summary,
+      approveLabel,
+      rejectLabel,
+      apply,
+      resolve,
+    });
+  });
+}
 
 export function useLocalApproval() {
   const [value, setValue] = useState(localApprovalStore.get());

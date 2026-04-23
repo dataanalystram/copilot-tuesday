@@ -20,7 +20,7 @@
  *     respond(result) resumes the agent with the user's decision.
  */
 
-import { useAgent, useFrontendTool, useHumanInTheLoop, useInterrupt } from "@copilotkit/react-core/v2";
+import { useAgent, useFrontendTool, useInterrupt } from "@copilotkit/react-core/v2";
 import { z } from "zod";
 import type {
   AgentSharedState,
@@ -33,6 +33,7 @@ import type {
   ShowcaseStage,
 } from "@/lib/agent-state";
 import { surfacesStore } from "@/lib/surfaces-store";
+import { requestLocalApproval } from "@/lib/local-approval";
 
 const NodeSchema: z.ZodType<A2UINode> = z.lazy(() =>
   z.union([
@@ -280,15 +281,7 @@ export default function FrontendTools() {
     },
   });
 
-  /* --------------------------------------------------------------------
-   * Human-in-the-loop: approve a batch of morphs before applying.
-   *
-   * This is the v2 useHumanInTheLoop pattern. It's really a FrontendTool
-   * whose `handler` has been replaced by a `render` that asks the user
-   * and then calls `respond(result)` to resume the agent with the decision.
-   * -------------------------------------------------------------------- */
-
-  useHumanInTheLoop({
+  useFrontendTool({
     name: "approve_morph",
     description:
       "Ask the user to approve a batch of morph_surface operations before applying them. Use for destructive morphs (clearing dashboard, removing >3 widgets).",
@@ -296,42 +289,17 @@ export default function FrontendTools() {
       reason: z.string().describe("Why this approval is needed."),
       summary: z.string().describe("Short, human-readable summary of the pending change."),
     }),
-    render: ({ args, status, respond }) => {
-      const typed = args as { reason?: string; summary?: string };
-      return (
-        <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-3 text-sm">
-          <div className="font-medium text-violet-200 mb-1">Approve change?</div>
-          {typed.reason && <div className="text-violet-100/80 mb-1">{typed.reason}</div>}
-          {typed.summary && (
-            <pre className="text-[11px] text-violet-100/80 whitespace-pre-wrap max-h-48 overflow-auto bg-black/30 rounded p-2 my-2">
-              {typed.summary}
-            </pre>
-          )}
-          <div className="flex gap-2">
-            <button
-              disabled={!respond}
-              className="rounded bg-violet-400 text-violet-950 px-2 py-1 text-xs font-medium disabled:opacity-50"
-              onClick={() => respond?.({ approved: true })}
-            >
-              Approve
-            </button>
-            <button
-              disabled={!respond}
-              className="rounded bg-white/10 text-white/80 px-2 py-1 text-xs disabled:opacity-50"
-              onClick={() => respond?.({ approved: false })}
-            >
-              Reject
-            </button>
-            {status === "inProgress" && (
-              <span className="text-[10px] text-violet-200/60 self-center">preparing…</span>
-            )}
-          </div>
-        </div>
-      );
+    handler: async ({ reason, summary }) => {
+      return requestLocalApproval({
+        title: "Approve change?",
+        summary: `${reason}\n\n${summary}`,
+        approveLabel: "Approve",
+        rejectLabel: "Reject",
+      });
     },
   });
 
-  useHumanInTheLoop({
+  useFrontendTool({
     name: "approve_showcase_plan",
     description:
       "Ask the user to approve the final analysis plan before marking it ready.",
@@ -340,54 +308,15 @@ export default function FrontendTools() {
       scriptSummary: z.string().describe("The plan or walkthrough summarized as timeboxed beats."),
       risks: z.array(z.string()).default([]).describe("Known risks and fallback moves."),
     }),
-    render: ({ args, status, respond }) => {
-      const typed = args as {
-        title?: string;
-        scriptSummary?: string;
-        risks?: string[];
-      };
-      return (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm">
-          <div className="mb-1 font-medium text-emerald-200">
-            Approve plan?
-          </div>
-          {typed.title && <div className="mb-1 text-emerald-100/80">{typed.title}</div>}
-          {typed.scriptSummary && (
-            <pre className="my-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-black/30 p-2 text-[11px] text-emerald-100/80">
-              {typed.scriptSummary}
-            </pre>
-          )}
-          {typed.risks && typed.risks.length > 0 && (
-            <ul className="mb-2 list-inside list-disc text-[11px] text-emerald-100/70">
-              {typed.risks.map((risk, i) => (
-                <li key={i}>{risk}</li>
-              ))}
-            </ul>
-          )}
-          <div className="flex gap-2">
-            <button
-              disabled={!respond}
-              className="rounded bg-emerald-400 px-2 py-1 text-xs font-medium text-emerald-950 disabled:opacity-50"
-              onClick={() => {
-                mergeAgentState(agent, { stage: "approved" });
-                respond?.({ approved: true });
-              }}
-            >
-              Approve
-            </button>
-            <button
-              disabled={!respond}
-              className="rounded bg-white/10 px-2 py-1 text-xs text-white/80 disabled:opacity-50"
-              onClick={() => respond?.({ approved: false })}
-            >
-              Revise
-            </button>
-            {status === "inProgress" && (
-              <span className="self-center text-[10px] text-emerald-200/60">waiting...</span>
-            )}
-          </div>
-        </div>
-      );
+    handler: async ({ title, scriptSummary, risks }) => {
+      const result = await requestLocalApproval({
+        title: `Approve plan: ${title}`,
+        summary: `${scriptSummary}${risks.length ? `\n\nRisks:\n- ${risks.join("\n- ")}` : ""}`,
+        approveLabel: "Approve",
+        rejectLabel: "Revise",
+        apply: () => mergeAgentState(agent, { stage: "approved" }),
+      });
+      return result;
     },
   });
 

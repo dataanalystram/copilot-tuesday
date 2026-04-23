@@ -36,7 +36,8 @@ const SPEED = 4.2;
 const RUNNER_X = 132;
 const HIT_LOW = RUNNER_X - 6;
 const HIT_HIGH = RUNNER_X + 34;
-const JUMP_BUFFER_FRAMES = 8;
+const JUMP_BUFFER_FRAMES = 14;
+const COYOTE_HEIGHT = 28;
 
 function runner(): Runner {
   return { y: 0, vy: 0, score: 0, hits: 0, health: 100, invincible: 0 };
@@ -186,7 +187,7 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
       }
     }
 
-    const humanCanJump = humanJump && current.human.y < 22;
+    const humanCanJump = humanJump && current.human.y < COYOTE_HEIGHT;
     const human = stepRunner(current.human, humanCanJump);
     const aiThreat = nearestThreat(obstacles, "ai");
     const aiShouldJump = !!aiThreat && aiThreat.x < 286 && aiThreat.x > RUNNER_X - 6 && current.ai.y < 18;
@@ -222,7 +223,7 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
 function stepRunner(input: Runner, jump: boolean): Runner {
   let vy = input.vy;
   let y = input.y;
-  if (jump && y < 8) vy = JUMP;
+  if (jump && y < COYOTE_HEIGHT) vy = JUMP;
   y = Math.max(0, y + vy);
   vy = y <= 0 && vy < 0 ? 0 : vy - GRAVITY;
   return {
@@ -318,14 +319,12 @@ function Lane({
         <span className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] tracking-normal text-white/45">{status}</span>
       </div>
       <div className="absolute bottom-[108px] left-0 right-0 border-t border-dashed border-white/10" />
-      <motion.div
-        animate={{ y: -y }}
-        transition={{ type: "spring", stiffness: 640, damping: 34 }}
+      <div
         className={`absolute bottom-[108px] flex h-12 w-12 items-center justify-center rounded-xl font-black shadow-2xl ${colorClass}`}
-        style={{ left: RUNNER_X }}
+        style={{ left: RUNNER_X, transform: `translate3d(0, ${-y}px, 0)` }}
       >
         {runner}
-      </motion.div>
+      </div>
       {obstacles.map((item) => (
         <motion.div
           key={item.id}
