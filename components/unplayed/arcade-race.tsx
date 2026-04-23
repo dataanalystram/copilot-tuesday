@@ -28,6 +28,8 @@ interface SimState {
   lastInput: string;
   aiDecision: string;
   started: boolean;
+  ended: boolean;
+  winner: "human" | "ai" | "draw" | "";
 }
 
 const JUMP = 14.8;
@@ -55,6 +57,8 @@ function initialState(): SimState {
     lastInput: "click or press Space to start",
     aiDecision: "waiting for human",
     started: false,
+    ended: false,
+    winner: "",
   };
 }
 
@@ -74,8 +78,8 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
     jumpBuffer.current = JUMP_BUFFER_FRAMES;
     setSim((state) => ({
       ...state,
-      started: true,
-      lastInput: state.human.y < 8 ? "human jump queued" : "already airborne",
+      started: state.ended ? state.started : true,
+      lastInput: state.ended ? "race ended" : state.human.y < COYOTE_HEIGHT ? "human jump queued" : "already airborne",
       aiDecision: state.started ? state.aiDecision : "race started",
     }));
   }, []);
@@ -99,7 +103,7 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
       previous = now;
       const buffered = jumpBuffer.current > 0;
       jumpBuffer.current = Math.max(0, jumpBuffer.current - 1);
-      setSim((current) => (current.started ? step(current, dt, buffered) : current));
+      setSim((current) => (current.started && !current.ended ? step(current, dt, buffered) : current));
       frame.current = requestAnimationFrame(tick);
     };
     frame.current = requestAnimationFrame(tick);
@@ -110,7 +114,7 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
 
   const humanNet = sim.human.score;
   const aiNet = sim.ai.score;
-  const leader = humanNet > aiNet ? "Human" : aiNet > humanNet ? "AI" : "Tied";
+  const leader = sim.winner ? winnerLabel(sim.winner) : humanNet > aiNet ? "Human" : aiNet > humanNet ? "AI" : "Tied";
 
   return (
     <div className="absolute inset-0 flex flex-col bg-[#05070d] text-white">
@@ -119,6 +123,20 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
         <span className="text-[10px] uppercase tracking-[0.28em] text-white/45">AI vs Human arcade</span>
         <div className="flex-1" />
         <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">leader: {leader}</span>
+        {sim.ended && (
+          <button
+            type="button"
+            onClick={() => {
+              ids.current = 3;
+              jumpBuffer.current = 0;
+              setSim(initialState());
+              setPaused(false);
+            }}
+            className="rounded-md border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100 transition hover:bg-emerald-300/15"
+          >
+            restart
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setPaused((value) => !value)}
@@ -142,7 +160,7 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
           queueJump();
         }}
         className="relative flex-1 overflow-hidden text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-        aria-label="Jump human runner"
+        aria-label={sim.ended ? "Race ended" : "Jump human runner"}
       >
         <div className="absolute left-5 top-5 grid grid-cols-4 gap-3">
           <ScoreCard label="Human" score={humanNet} detail={`health ${sim.human.health} · hits ${sim.human.hits}`} tone="cyan" />
@@ -150,6 +168,16 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
           <ScoreCard label="Input" score={sim.lastInput} detail="human control" tone="emerald" />
           <ScoreCard label="AI decision" score={sim.aiDecision} detail="live policy" tone="amber" />
         </div>
+
+        {sim.ended && (
+          <div className="absolute inset-x-0 top-1/2 z-10 mx-auto w-fit -translate-y-1/2 rounded-2xl border border-white/10 bg-black/75 px-8 py-6 text-center shadow-2xl backdrop-blur">
+            <div className="text-[10px] uppercase tracking-[0.35em] text-white/40">race ended</div>
+            <div className="mt-2 text-3xl font-black text-white">{winnerLabel(sim.winner)} wins</div>
+            <div className="mt-2 text-sm text-white/50">
+              Human health {sim.human.health}, AI health {sim.ai.health}. Hit restart to play again.
+            </div>
+          </div>
+        )}
 
         <Lane
           label="Human"
@@ -170,7 +198,11 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
         />
 
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/55">
-          {sim.started ? "Click anywhere or press Space to jump. The AI predicts obstacle distance and jumps before impact." : "Click anywhere or press Space to start. Nothing moves until you begin."}
+          {sim.ended
+            ? "Race over. Use restart to play again."
+            : sim.started
+              ? "You control only the Human lane: click anywhere or press Space to jump. The AI controls only the AI lane."
+              : "Click anywhere or press Space to start. Nothing moves until you begin."}
         </div>
       </button>
     </div>
@@ -205,6 +237,16 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
       passedAi: item.passedAi || (item.lane === "ai" && item.x < RUNNER_X - 20),
     }));
 
+    const ended = nextHuman.health <= 0 || nextAi.health <= 0;
+    const winner =
+      nextHuman.health <= 0 && nextAi.health <= 0
+        ? "draw"
+        : nextHuman.health <= 0
+          ? "ai"
+          : nextAi.health <= 0
+            ? "human"
+            : "";
+
     return {
       human: nextHuman,
       ai: nextAi,
@@ -216,8 +258,17 @@ export function ArcadeRace({ onExit }: { onExit: () => void }) {
           ? `wait ${Math.round(aiThreat.x)}px`
           : "clear lane",
       started: current.started,
+      ended,
+      winner,
     };
   }
+}
+
+function winnerLabel(winner: SimState["winner"]) {
+  if (winner === "human") return "Human";
+  if (winner === "ai") return "AI";
+  if (winner === "draw") return "Draw";
+  return "Tied";
 }
 
 function stepRunner(input: Runner, jump: boolean): Runner {

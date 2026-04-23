@@ -19,7 +19,7 @@ export function GameShell({ agentId }: GameShellProps) {
   const [pendingCell, setPendingCell] = useState<string | null>(null);
   const [moveToast, setMoveToast]     = useState<{ text: string; ok: boolean } | null>(null);
   const [battleMode, setBattleMode]   = useState(false);
-  const [arcadeMode, setArcadeMode]   = useState(true);
+  const [arcadeMode, setArcadeMode]   = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevHistoryLen = useRef(0);
 
@@ -96,7 +96,7 @@ export function GameShell({ agentId }: GameShellProps) {
   }, [agent, copilotkit]);
 
   const startGame = useCallback(() => {
-    sendMessage("Start a new strategy-board Game Lab session: invent a tight original 2-player board game, explain why the mechanic is novel, then prepare it for a fast playtest. Keep this explicitly board-based because arcade mode is handled by the local canvas runner.");
+    sendMessage("Start a new Game Lab session: invent a tight original 2-player strategy game, explain why the mechanic is novel, then prepare it for a fast playtest.");
   }, [sendMessage]);
 
   const onPickMove = useCallback((cellId: string) => {
@@ -454,6 +454,9 @@ function IdleScreen({ onStart, onArcade, running }: { onStart: () => void; onArc
         >
           AI vs Human arcade
         </button>
+        <div className="max-w-lg text-xs leading-relaxed text-white/32">
+          Choose the strategy board for generated multi-agent games, or Arcade for a real-time AI-vs-human runner.
+        </div>
       </motion.div>
     </div>
   );
