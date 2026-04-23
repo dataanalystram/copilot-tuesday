@@ -170,22 +170,22 @@ function AppShell() {
             onto the canvas, the chat rail, anywhere. */}
         <AttachmentDropzone>
           <Canvas />
+
+          {/* The rails float over the canvas; they're in <aside> elements with
+              explicit aria-labels for screen-reader navigation. */}
+          <SessionsRail
+            open={sessionsOpen}
+            onClose={() => setSessionsOpen(false)}
+            activeThreadId={threadId}
+            onSelect={onSelectThread}
+            onNew={onNewThread}
+          />
+          <ChatRail open={chatOpen} onClose={() => setChatOpen(false)} />
+
+          {/* Always-on command bar. Auto-opens the chat rail on first send so
+              the user sees the assistant's reply without hunting. */}
+          <CommandBar onSend={() => setChatOpen(true)} />
         </AttachmentDropzone>
-
-        {/* The rails float over the canvas; they're in <aside> elements with
-            explicit aria-labels for screen-reader navigation. */}
-        <SessionsRail
-          open={sessionsOpen}
-          onClose={() => setSessionsOpen(false)}
-          activeThreadId={threadId}
-          onSelect={onSelectThread}
-          onNew={onNewThread}
-        />
-        <ChatRail open={chatOpen} onClose={() => setChatOpen(false)} />
-
-        {/* Always-on command bar. Auto-opens the chat rail on first send so
-            the user sees the assistant's reply without hunting. */}
-        <CommandBar onSend={() => setChatOpen(true)} />
       </main>
     </>
   );

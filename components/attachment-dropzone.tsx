@@ -27,7 +27,7 @@
  * so the file is embedded as a string the model can reason over directly.
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useAttachments } from "@copilotkit/react-core/v2";
 import { motion, AnimatePresence } from "framer-motion";
 import { textAttachmentStore } from "@/lib/attachment-store";
@@ -44,6 +44,9 @@ const ACCEPT = [
   "text/plain",
   "image/*",
 ].join(",");
+
+const ATTACHMENT_INPUT_ID = "morphboard-attachment-input";
+const OPEN_ATTACHMENT_EVENT = "morphboard:open-attachment-picker";
 
 async function readAsText(file: File): Promise<string> {
   return await file.text();
@@ -107,6 +110,18 @@ export default function AttachmentDropzone({ children }: { children: React.React
     },
   });
 
+  const openPicker = useCallback(() => {
+    const input = fileInputRef.current;
+    if (!input) return;
+    input.value = "";
+    input.click();
+  }, [fileInputRef]);
+
+  useEffect(() => {
+    window.addEventListener(OPEN_ATTACHMENT_EVENT, openPicker);
+    return () => window.removeEventListener(OPEN_ATTACHMENT_EVENT, openPicker);
+  }, [openPicker]);
+
   return (
     <div
       ref={containerRef}
@@ -115,14 +130,17 @@ export default function AttachmentDropzone({ children }: { children: React.React
       onDrop={handleDrop}
       className="relative h-full w-full"
     >
-      {/* Hidden native file input — the toolbar's paperclip button triggers this. */}
+      {/* Native file input — visually hidden, but still clickable from toolbar buttons. */}
       <input
+        id={ATTACHMENT_INPUT_ID}
+        data-morphboard-attachment-input="true"
         ref={fileInputRef}
         type="file"
         multiple
         accept={ACCEPT}
         onChange={handleFileUpload}
-        className="hidden"
+        className="fixed -left-[9999px] top-0 h-px w-px opacity-0"
+        tabIndex={-1}
         aria-hidden
       />
 
@@ -191,11 +209,19 @@ export default function AttachmentDropzone({ children }: { children: React.React
  */
 export function AttachButton({ className }: { className?: string }) {
   const onClick = () => {
-    // Find the dropzone's hidden input and click it.
-    const input = document.querySelector<HTMLInputElement>(
-      'input[type="file"][multiple]',
-    );
-    input?.click();
+    const input =
+      document.getElementById(ATTACHMENT_INPUT_ID) as HTMLInputElement | null
+      ?? document.querySelector<HTMLInputElement>(
+        '[data-morphboard-attachment-input="true"]',
+      );
+
+    if (input) {
+      input.value = "";
+      input.click();
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent(OPEN_ATTACHMENT_EVENT));
   };
   return (
     <button
