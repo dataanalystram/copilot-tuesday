@@ -1,0 +1,48 @@
+{
+  "name": "morphboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generative-UI dashboard that rewires itself. CopilotKit v2 + A2UI + local Ollama.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "probe:ollama": "tsx scripts/probe-ollama.ts",
+    "probe:a2ui": "tsx scripts/probe-a2ui.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "2.0.41",
+    "@copilotkit/a2ui-renderer": "1.56.2",
+    "@copilotkit/react-core": "1.56.2",
+    "@copilotkit/react-ui": "1.56.2",
+    "@copilotkit/runtime": "1.56.2",
+    "@ag-ui/mcp-apps-middleware": "0.0.3",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "ai": "6.0.168",
+    "clsx": "2.1.1",
+    "framer-motion": "12.38.0",
+    "next": "16.2.4",
+    "openai": "6.34.0",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "three": "0.184.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.14",
+    "@types/node": "22.10.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@types/three": "0.184.0",
+    "dotenv": "16.4.7",
+    "eslint": "9.17.0",
+    "eslint-config-next": "16.2.4",
+    "postcss": "8.5.3",
+    "tailwindcss": "4.1.14",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3"
+  }
+}
